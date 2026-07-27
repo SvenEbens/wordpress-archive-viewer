@@ -1,0 +1,29 @@
+# Runtime binaries (downloaded separately)
+runtime/
+
+# Temporary files
+temp/
+cache/
+
+# Logs
+logs/
+
+# Build artifacts
+src-tauri/target/
+
+# Node modules
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
