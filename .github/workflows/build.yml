@@ -11,15 +11,16 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [windows-latest, macos-latest, ubuntu-22.04]
     env:
       CARGO_TERM_COLOR: always
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Install Node.js (required for the frontend)
+      # Install Node.js (required for Tauri CLI)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -29,50 +30,66 @@ jobs:
       # Install Rust toolchain
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-unknown-linux-gnu,x86_64-apple-darwin,x86_64-pc-windows-msvc
 
-      # Install Tauri dependencies for each platform
-      - name: Install macOS dependencies
-        if: runner.os == 'macOS'
-        run: |
-          brew update
-          brew untap aws/tap || true
-          brew install gtk+3 librsvg libayatana-appindicator
-          brew install webkit2gtk
-
+      # Tauri v2 on Linux needs these system libraries
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
 
       # Install npm dependencies
       - name: Install npm packages
         run: npm ci
 
-      # Ensure runtime binaries are present for the target OS
-      - name: Download runtime binaries
+      # Create runtime directories (Tauri bundles these with the app)
+      - name: Setup runtime directories
+        shell: bash
         run: |
-          mkdir -p src-tauri/runtime/caddy src-tauri/runtime/php src-tauri/runtime/mariadb
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            curl -L -o src-tauri/runtime/caddy/caddy.exe https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_windows_amd64.exe
-            # For PHP and MariaDB on Windows you need to provide the binaries yourself or add steps to download and extract them.
-          elif [[ "$RUNNER_OS" == "macOS" ]]; then
-            curl -L -o caddy.tar.gz https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_darwin_amd64.tar.gz
-            tar -xzf caddy.tar.gz -C src-tauri/runtime/caddy --strip-components=1 caddy
-            brew install php mariadb
-          else
-            curl -L -o src-tauri/runtime/caddy/caddy https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_linux_amd64.tar.gz
-            tar -xzf src-tauri/runtime/caddy/caddy -C src-tauri/runtime/caddy --strip-components=1 caddy
-            sudo apt-get install -y php-cli php-cgi mariadb-server
-          fi
+          mkdir -p src-tauri/runtime/caddy
+          mkdir -p src-tauri/runtime/php
+          mkdir -p src-tauri/runtime/mariadb
 
-      # Build the frontend
-      - name: Build frontend
-        run: npm run build
+      # Download Caddy for each platform
+      - name: Download Caddy (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_windows_amd64.zip" -OutFile caddy.zip
+          Expand-Archive caddy.zip -DestinationPath src-tauri/runtime/caddy -Force
+          # Keep only caddy.exe
+          if (Test-Path src-tauri/runtime/caddy/caddy.exe) {
+            Write-Host "Caddy downloaded successfully"
+          }
 
-      # Build the Tauri app (release)
+      - name: Download Caddy (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          curl -L -o caddy.tar.gz https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_darwin_amd64.tar.gz
+          tar -xzf caddy.tar.gz -C src-tauri/runtime/caddy
+          chmod +x src-tauri/runtime/caddy/caddy
+
+      - name: Download Caddy (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          curl -L -o caddy.tar.gz https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_linux_amd64.tar.gz
+          tar -xzf caddy.tar.gz -C src-tauri/runtime/caddy
+          chmod +x src-tauri/runtime/caddy/caddy
+
+      # Create placeholder files for PHP and MariaDB runtimes
+      # (these are large binaries that must be provided per-platform)
+      - name: Create runtime placeholders
+        shell: bash
+        run: |
+          touch src-tauri/runtime/php/.gitkeep
+          touch src-tauri/runtime/mariadb/.gitkeep
+
+      # Build the Tauri app (this also builds the frontend)
       - name: Build Tauri app
         run: npm run tauri:build
 
