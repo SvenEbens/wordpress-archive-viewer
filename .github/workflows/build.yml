@@ -23,7 +23,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       # Install Rust toolchain
@@ -36,7 +36,7 @@ jobs:
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
         run: |
-          brew install gtk+3 librsvg libappindicator-gtk3 webkit2gtk
+          brew install gtk+3 librsvg libayatana-appindicator webkit2gtk
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
