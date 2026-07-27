@@ -37,6 +37,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew update
+          brew untap aws/tap || true
           brew install gtk+3 librsvg libayatana-appindicator
           brew install webkit2gtk
 
@@ -44,7 +45,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
 
       # Install npm dependencies
       - name: Install npm packages
