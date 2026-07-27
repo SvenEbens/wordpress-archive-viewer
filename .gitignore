@@ -1,5 +1,5 @@
 # Runtime binaries (downloaded separately)
-runtime/
+/src-tauri/runtime/
 
 # Temporary files
 temp/
