@@ -93,9 +93,50 @@ jobs:
       - name: Build Tauri app
         run: npm run tauri:build
 
-      # Upload built artifacts
-      - name: Upload artifact
+      # Package portable app
+      - name: Package Portable App (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path deploy/archives
+          Copy-Item src-tauri/target/release/wordpress-archive-viewer.exe -Destination deploy/
+          Copy-Item src-tauri/runtime -Destination deploy/ -Recurse
+          Compress-Archive -Path deploy/* -DestinationPath wordpress-archive-viewer-windows.zip
+
+      - name: Package Portable App (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p deploy/archives
+          cp -R "src-tauri/target/release/bundle/macos/WordPress Archive Viewer.app" deploy/
+          cp -R src-tauri/runtime deploy/
+          cd deploy && zip -r ../wordpress-archive-viewer-macos.zip .
+
+      - name: Package Portable App (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p deploy/archives
+          cp src-tauri/target/release/wordpress-archive-viewer deploy/
+          cp -R src-tauri/runtime deploy/
+          cd deploy && tar -czf ../wordpress-archive-viewer-linux.tar.gz .
+
+      # Upload portable artifacts
+      - name: Upload Windows Artifact
+        if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-artifact
-          path: src-tauri/target/release/bundle/**
+          name: windows-portable
+          path: wordpress-archive-viewer-windows.zip
+
+      - name: Upload macOS Artifact
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-portable
+          path: wordpress-archive-viewer-macos.zip
+
+      - name: Upload Linux Artifact
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-portable
+          path: wordpress-archive-viewer-linux.tar.gz

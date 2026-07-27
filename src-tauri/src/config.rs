@@ -22,6 +22,19 @@ impl AppConfig {
         if let Ok(exe_path) = std::env::current_exe() {
             if let Some(parent) = exe_path.parent() {
                 base_dir = parent.to_path_buf();
+                
+                // On macOS, if running inside a .app bundle (e.g. MyApp.app/Contents/MacOS/exe),
+                // we want the base directory to be the folder containing MyApp.app.
+                #[cfg(target_os = "macos")]
+                {
+                    if parent.ends_with("Contents/MacOS") {
+                        if let Some(app_bundle) = parent.parent().and_then(|p| p.parent()) {
+                            if let Some(app_parent) = app_bundle.parent() {
+                                base_dir = app_parent.to_path_buf();
+                            }
+                        }
+                    }
+                }
             }
         }
         
