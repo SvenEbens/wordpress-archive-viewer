@@ -36,7 +36,9 @@ jobs:
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
         run: |
-          brew install gtk+3 librsvg libayatana-appindicator webkit2gtk
+          brew update
+          brew install gtk+3 librsvg libayatana-appindicator
+          brew install webkit2gtk
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
