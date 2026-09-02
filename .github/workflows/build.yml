@@ -60,7 +60,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          ./scripts/setup-runtime.ps1 -RuntimeDir src-tauri/runtime
+          ./scripts/setup-runtime.ps1 -RuntimeDir src-tauri/runtime -Force
 
       - name: Download Caddy (macOS)
         if: runner.os == 'macOS'
