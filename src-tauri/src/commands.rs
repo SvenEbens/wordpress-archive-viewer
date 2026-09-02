@@ -73,9 +73,55 @@ pub async fn start_archive(
     
     // Perform search replace to update URLs in DB
     let new_url = format!("http://localhost:{}", http_port);
-    // Ideally, we'd read the old URL from manifest.json, but for now we can infer from the WP DB or skip if not needed
-    // Assuming the old URL is somehow provided or handled inside search-replace script if we omit it.
-    // For this plan, wp-config.php will hardcode siteurl anyway.
+    
+    let table_prefix = wpconfig::get_table_prefix(&extract_path).unwrap_or_else(|_| "wp_".to_string());
+    if let Ok(old_url) = database::restore::get_site_url(&config, db_port, &db_name, &table_prefix).await {
+        if !old_url.is_empty() && old_url != new_url {
+            tracing::info!("Updating URLs in database from {} to {}", old_url, new_url);
+            database::restore::search_replace_urls(&config, db_port, &db_name, &old_url, &new_url).await?;
+            
+            // Fix Elementor CSS files: search-replace old URLs in the pre-built
+            // CSS rather than deleting them (Elementor doesn't reliably regenerate).
+            archive::css_fixup::search_replace_in_css_files(&extract_path, &old_url, &new_url).await?;
+            
+            // Fix Elementor DB options so it treats the on-disk CSS as valid
+            database::restore::fix_elementor_options(&config, db_port, &db_name, &table_prefix).await?;
+
+            // Clear other cache directories (these ARE genuinely regenerated caches)
+            let cache_dirs = [
+                extract_path.join("wp-content").join("uploads").join("siteground-optimizer-assets"),
+                extract_path.join("wp-content").join("uploads").join("wp-rocket"),
+                extract_path.join("wp-content").join("cache"),
+                extract_path.join("cache"),  // Some plugins place cache at root
+            ];
+
+            for dir in cache_dirs.iter() {
+                if dir.exists() {
+                    tracing::info!("Clearing cache directory: {}", dir.display());
+                    let _ = tokio::fs::remove_dir_all(dir).await;
+                }
+            }
+
+            // Disable troublesome plugins that enforce HTTPS or aggressive caching
+            let plugins_dir = extract_path.join("wp-content").join("plugins");
+            let troublesome_plugins = [
+                "sg-cachepress",
+                "really-simple-ssl",
+                "ssl-insecure-content-fixer",
+                "wp-force-ssl",
+                "headers-security-advanced-hsts-wp",
+            ];
+
+            for plugin in troublesome_plugins.iter() {
+                let plugin_path = plugins_dir.join(plugin);
+                if plugin_path.exists() {
+                    let disabled_path = plugins_dir.join(format!("{}.disabled", plugin));
+                    tracing::info!("Disabling troublesome plugin: {}", plugin);
+                    let _ = tokio::fs::rename(plugin_path, disabled_path).await;
+                }
+            }
+        }
+    }
     
     // Update wp-config.php
     wpconfig::generate_or_patch(&extract_path, db_port, &db_name, &new_url)?;

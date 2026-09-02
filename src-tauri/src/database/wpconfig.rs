@@ -36,6 +36,9 @@ pub fn generate_or_patch(
     content = ensure_define_raw(&content, "WP_DEBUG_DISPLAY", "false");
     content = ensure_define_raw(&content, "WP_DEBUG_LOG", "false");
     content = ensure_define_raw(&content, "DISABLE_WP_CRON", "true");
+    content = ensure_define_raw(&content, "WP_CACHE", "false");
+    content = ensure_define_raw(&content, "FORCE_SSL_ADMIN", "false");
+    content = ensure_define_raw(&content, "WP_HTTP_BLOCK_EXTERNAL", "true");
     content = ensure_define(&content, "AUTOMATIC_UPDATER_DISABLED", "true");
     content = ensure_define(&content, "DISALLOW_FILE_EDIT", "true");
     // Note: don't set DISALLOW_FILE_MODS as it prevents theme/plugin updates from working

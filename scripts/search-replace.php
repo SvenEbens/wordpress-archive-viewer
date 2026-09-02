@@ -98,9 +98,15 @@ foreach ($tables as $table) {
 
     // Build WHERE clause to find rows with the search string
     $where_parts = [];
+    $escaped_search = $mysqli->real_escape_string($search);
+    $search_json = str_replace('/', '\\/', $search);
+    $escaped_search_json = $mysqli->real_escape_string($search_json);
+    $search_urlenc = urlencode($search);
+    $escaped_search_urlenc = $mysqli->real_escape_string($search_urlenc);
     foreach ($text_columns as $col) {
-        $escaped_search = $mysqli->real_escape_string($search);
         $where_parts[] = "`$col` LIKE '%$escaped_search%'";
+        $where_parts[] = "`$col` LIKE '%$escaped_search_json%'";
+        $where_parts[] = "`$col` LIKE '%$escaped_search_urlenc%'";
     }
     $where = implode(' OR ', $where_parts);
 
@@ -173,35 +179,43 @@ exit(0);
  * Recursively handle serialized data, performing the search-replace
  * while maintaining correct serialization string lengths.
  */
-function recursive_unserialize_replace($search, $replace, $data, $serialised = false) {
-    // Attempt to unserialize the data
-    $unserialized = @unserialize($data);
-
-    if ($unserialized !== false || $data === 'b:0;') {
-        // Data was serialized — recurse into it
-        if (is_array($unserialized)) {
-            $new_data = [];
-            foreach ($unserialized as $key => $value) {
-                $new_data[$key] = recursive_unserialize_replace($search, $replace, $value, false);
-            }
-            return serialize($new_data);
-        } elseif (is_object($unserialized)) {
-            $props = get_object_vars($unserialized);
-            foreach ($props as $key => $value) {
-                $unserialized->$key = recursive_unserialize_replace($search, $replace, $value, false);
-            }
-            return serialize($unserialized);
-        } elseif (is_string($unserialized)) {
-            $replaced = str_replace($search, $replace, $unserialized);
-            return serialize($replaced);
-        }
-        return serialize($unserialized);
-    }
-
-    // Data is not serialized — do simple replacement
+function recursive_unserialize_replace($search, $replace, $data) {
     if (is_string($data)) {
-        return str_replace($search, $replace, $data);
+        $unserialized = @unserialize($data);
+        if ($unserialized !== false || $data === 'b:0;') {
+            $processed = recursive_unserialize_replace($search, $replace, $unserialized);
+            return serialize($processed);
+        }
+        
+        $search_json = str_replace('/', '\\/', $search);
+        $replace_json = str_replace('/', '\\/', $replace);
+        $search_urlenc = urlencode($search);
+        $replace_urlenc = urlencode($replace);
+        
+        $data = str_replace($search, $replace, $data);
+        $data = str_replace($search_json, $replace_json, $data);
+        $data = str_replace($search_urlenc, $replace_urlenc, $data);
+        return $data;
     }
-
+    
+    if (is_array($data)) {
+        $new_data = [];
+        foreach ($data as $key => $value) {
+            $new_data[$key] = recursive_unserialize_replace($search, $replace, $value);
+        }
+        return $new_data;
+    }
+    
+    if (is_object($data)) {
+        if ($data instanceof __PHP_Incomplete_Class) {
+            return $data;
+        }
+        $props = get_object_vars($data);
+        foreach ($props as $key => $value) {
+            $data->$key = recursive_unserialize_replace($search, $replace, $value);
+        }
+        return $data;
+    }
+    
     return $data;
 }

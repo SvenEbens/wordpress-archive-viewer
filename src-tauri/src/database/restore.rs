@@ -136,3 +136,64 @@ pub async fn apply_wpress_config(
 
     Ok(())
 }
+
+pub async fn get_site_url(config: &AppConfig, db_port: u16, db_name: &str, table_prefix: &str) -> Result<String> {
+    let maria_dir = config.runtime_dir.join("mariadb");
+    let bin_dir = maria_dir.join("bin");
+    
+    let output = Command::new(bin_dir.join(format!("mariadb{}", std::env::consts::EXE_SUFFIX)))
+        .arg("-h").arg("127.0.0.1")
+        .arg("-P").arg(db_port.to_string())
+        .arg("-u").arg("root")
+        .arg("--skip-column-names")
+        .arg("-e").arg(format!("SELECT option_value FROM {}options WHERE option_name = 'siteurl'", table_prefix))
+        .arg(db_name)
+        .output()
+        .await?;
+        
+    let url = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if url.is_empty() {
+        return Err(AppError::Database("Could not fetch siteurl".into()));
+    }
+    Ok(url)
+}
+
+/// Configure Elementor to use its existing CSS files rather than trying
+/// to regenerate them.  Sets `elementor_css_print_method` to `internal`
+/// and clears stale Elementor transients that would otherwise trigger
+/// a cache rebuild.
+pub async fn fix_elementor_options(
+    config: &AppConfig,
+    db_port: u16,
+    db_name: &str,
+    table_prefix: &str,
+) -> Result<()> {
+    let maria_dir = config.runtime_dir.join("mariadb");
+    let bin_dir = maria_dir.join("bin");
+
+    let sql = format!(
+        "UPDATE {prefix}options SET option_value = 'internal' WHERE option_name = 'elementor_css_print_method'; \
+         DELETE FROM {prefix}options WHERE option_name LIKE '_transient_elementor%'; \
+         DELETE FROM {prefix}options WHERE option_name LIKE '_transient_timeout_elementor%'; \
+         DELETE FROM {prefix}options WHERE option_name LIKE '_site_transient_elementor%'; \
+         DELETE FROM {prefix}options WHERE option_name LIKE '_site_transient_timeout_elementor%';",
+        prefix = table_prefix
+    );
+
+    tracing::info!("Fixing Elementor options (css_print_method → internal, clearing transients)");
+
+    let status = Command::new(bin_dir.join(format!("mariadb{}", std::env::consts::EXE_SUFFIX)))
+        .arg("-h").arg("127.0.0.1")
+        .arg("-P").arg(db_port.to_string())
+        .arg("-u").arg("root")
+        .arg("-e").arg(&sql)
+        .arg(db_name)
+        .status()
+        .await?;
+
+    if !status.success() {
+        tracing::warn!("Failed to fix Elementor options (non-fatal)");
+    }
+
+    Ok(())
+}

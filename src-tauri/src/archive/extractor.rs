@@ -154,7 +154,7 @@ pub async fn extract_archive(archive_path: &Path, config: &AppConfig, archive_id
         // Some backup formats put wp-content folders at the root. Move them to wp-content/
         let wp_content = extract_dir_clone.join("wp-content");
         let _ = std::fs::create_dir_all(&wp_content);
-        for folder in ["plugins", "themes", "uploads", "mu-plugins", "gallery", "languages", "upgrade"].iter() {
+        for folder in ["plugins", "themes", "uploads", "mu-plugins", "gallery", "languages", "upgrade", "astra-local-fonts", "cache"].iter() {
             let src = extract_dir_clone.join(folder);
             let dst = wp_content.join(folder);
             if src.exists() {

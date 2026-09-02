@@ -10,6 +10,7 @@ use crate::archive::manifest::{ArchiveItem, ArchiveManifest};
 pub mod extractor;
 pub mod manifest;
 pub mod core_fallback;
+pub mod css_fixup;
 
 pub fn list_archives(config: &AppConfig) -> Result<Vec<ArchiveItem>> {
     let mut archives = Vec::new();

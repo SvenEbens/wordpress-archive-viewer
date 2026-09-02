@@ -41,9 +41,25 @@ pub async fn start(config: &AppConfig, port: u16) -> Result<tokio::process::Chil
 
     if ini_path.exists() {
         let content = std::fs::read_to_string(&ini_path).unwrap_or_default();
-        if !content.contains("; WordPress Archive Viewer settings") {
+        let needs_config = !content.contains("; WordPress Archive Viewer settings");
+        let needs_opcache_upgrade = content.contains("; WordPress Archive Viewer settings") && !content.contains("zend_extension=opcache");
+        
+        if needs_config || needs_opcache_upgrade {
+            if needs_opcache_upgrade {
+                // Remove the old config block and re-append with OPcache
+                let marker = "; WordPress Archive Viewer settings";
+                if let Some(pos) = content.find(marker) {
+                    // Find the start of the block (go back to find the preceding newlines)
+                    let trim_pos = content[..pos].rfind('\n').map(|p| p + 1).unwrap_or(pos);
+                    let new_content = content[..trim_pos].to_string();
+                    std::fs::write(&ini_path, new_content)?;
+                    tracing::info!("Removed old WordPress Archive Viewer config block from php.ini for upgrade");
+                }
+            }
+            
             let config_block = "\n\n; WordPress Archive Viewer settings\n\
 extension_dir = \"ext\"\n\
+zend_extension=opcache\n\
 extension=curl\n\
 extension=fileinfo\n\
 extension=gd\n\
@@ -63,11 +79,20 @@ upload_max_filesize = 64M\n\
 max_input_vars = 3000\n\
 display_errors = Off\n\
 log_errors = On\n\
-error_log = php_errors.log\n";
+error_log = php_errors.log\n\
+\n\
+; OPcache settings for performance\n\
+opcache.enable=1\n\
+opcache.enable_cli=0\n\
+opcache.memory_consumption=128\n\
+opcache.interned_strings_buffer=8\n\
+opcache.max_accelerated_files=10000\n\
+opcache.revalidate_freq=0\n\
+opcache.validate_timestamps=0\n";
             let mut file = std::fs::OpenOptions::new().append(true).open(&ini_path)?;
             use std::io::Write;
             file.write_all(config_block.as_bytes())?;
-            tracing::info!("Appended WordPress Archive Viewer settings to php.ini");
+            tracing::info!("Appended WordPress Archive Viewer settings (with OPcache) to php.ini");
         }
     }
 
