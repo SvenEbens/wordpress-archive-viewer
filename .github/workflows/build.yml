@@ -55,17 +55,12 @@ jobs:
           mkdir -p src-tauri/runtime/php
           mkdir -p src-tauri/runtime/mariadb
 
-      # Download Caddy for each platform
-      - name: Download Caddy (Windows)
+      # Download Runtimes
+      - name: Download Windows Runtimes
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_windows_amd64.zip" -OutFile caddy.zip
-          Expand-Archive caddy.zip -DestinationPath src-tauri/runtime/caddy -Force
-          # Keep only caddy.exe
-          if (Test-Path src-tauri/runtime/caddy/caddy.exe) {
-            Write-Host "Caddy downloaded successfully"
-          }
+          ./scripts/setup-runtime.ps1 -RuntimeDir src-tauri/runtime
 
       - name: Download Caddy (macOS)
         if: runner.os == 'macOS'
@@ -84,6 +79,7 @@ jobs:
       # Create placeholder files for PHP and MariaDB runtimes
       # (these are large binaries that must be provided per-platform)
       - name: Create runtime placeholders
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           touch src-tauri/runtime/php/.gitkeep
@@ -101,6 +97,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path deploy/archives
           Copy-Item src-tauri/target/release/wordpress-archive-viewer.exe -Destination deploy/
           Copy-Item src-tauri/runtime -Destination deploy/ -Recurse
+          Copy-Item scripts -Destination deploy/ -Recurse
           Compress-Archive -Path deploy/* -DestinationPath wordpress-archive-viewer-windows.zip
 
       - name: Package Portable App (macOS)
@@ -109,6 +106,7 @@ jobs:
           mkdir -p deploy/archives
           cp -R "src-tauri/target/release/bundle/macos/WordPress Archive Viewer.app" deploy/
           cp -R src-tauri/runtime deploy/
+          cp -R scripts deploy/
           cd deploy && zip -r ../wordpress-archive-viewer-macos.zip .
 
       - name: Package Portable App (Linux)
@@ -117,6 +115,7 @@ jobs:
           mkdir -p deploy/archives
           cp src-tauri/target/release/wordpress-archive-viewer deploy/
           cp -R src-tauri/runtime deploy/
+          cp -R scripts deploy/
           cd deploy && tar -czf ../wordpress-archive-viewer-linux.tar.gz .
 
       # Upload portable artifacts
