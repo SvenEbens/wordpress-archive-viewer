@@ -75,8 +75,7 @@ pub async fn search_replace_urls(
 
     tracing::info!("Running search & replace: {} -> {}", old_url, new_url);
 
-    // Usage: php search-replace.php <host> <port> <user> <password> <database> <search> <replace>
-    let status = Command::new(php_exe)
+    let output = Command::new(php_exe)
         .arg(&script_path)
         .arg("127.0.0.1")
         .arg(db_port.to_string())
@@ -85,11 +84,17 @@ pub async fn search_replace_urls(
         .arg(db_name)
         .arg(old_url)
         .arg(new_url)
-        .status()
+        .output()
         .await?;
 
-    if !status.success() {
-        return Err(AppError::Database("Search and replace script failed".into()));
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        tracing::error!("Search & replace failed.\nstdout: {}\nstderr: {}", stdout, stderr);
+        return Err(AppError::Database(format!(
+            "Search and replace script failed: {}",
+            if !stderr.is_empty() { stderr.to_string() } else { stdout.to_string() }
+        )));
     }
 
     Ok(())

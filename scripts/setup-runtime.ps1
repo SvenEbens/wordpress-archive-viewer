@@ -83,11 +83,11 @@ function Setup-PhpIni {
     $content = Get-Content $iniPath -Raw
 
     foreach ($ext in $extensions) {
-        $content = $content -replace ('^;(extension=' + $ext + ')$'), ('extension=' + $ext)
+        $content = $content -replace ('(?m)^;(extension=' + $ext + ')'), ('extension=' + $ext)
     }
 
     $extDir = (Join-Path $PhpDir 'ext') -replace '\\', '/'
-    $content = $content -replace '^;?extension_dir\s*=.*$', ('extension_dir = "' + $extDir + '"')
+    $content = $content -replace '(?m)^;?extension_dir\s*=.*$', ('extension_dir = "' + $extDir + '"')
 
     $settings = @(
         '',
