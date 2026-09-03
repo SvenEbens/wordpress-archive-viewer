@@ -76,6 +76,8 @@ pub async fn search_replace_urls(
     tracing::info!("Running search & replace: {} -> {}", old_url, new_url);
 
     let output = Command::new(php_exe)
+        .arg("-d")
+        .arg("display_errors=1")
         .arg(&script_path)
         .arg("127.0.0.1")
         .arg(db_port.to_string())
@@ -123,7 +125,9 @@ pub async fn apply_wpress_config(
     tracing::info!("Applying WPRESS config from package.json");
 
     // Usage: php apply-wpress-config.php <package_json_path> <host> <port> <user> <pass> <db> <prefix>
-    let status = Command::new(php_exe)
+    let output = Command::new(php_exe)
+        .arg("-d")
+        .arg("display_errors=1")
         .arg(&script_path)
         .arg(package_json_path)
         .arg("127.0.0.1")
@@ -132,11 +136,13 @@ pub async fn apply_wpress_config(
         .arg("") // empty password
         .arg(db_name)
         .arg(table_prefix)
-        .status()
+        .output()
         .await?;
 
-    if !status.success() {
-        tracing::warn!("Failed to apply WPRESS config");
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        tracing::warn!("Failed to apply WPRESS config.\nstdout: {}\nstderr: {}", stdout, stderr);
     }
 
     Ok(())

@@ -34,7 +34,14 @@ echo "Search:   $search\n";
 echo "Replace:  $replace\n\n";
 
 // Connect to the database
-$mysqli = new mysqli($db_host, $db_user, $db_pass, $db_name, $db_port);
+// PHP 8.1+ throws mysqli_sql_exception by default; disable for compat
+mysqli_report(MYSQLI_REPORT_OFF);
+try {
+    $mysqli = new mysqli($db_host, $db_user, $db_pass, $db_name, $db_port);
+} catch (Exception $e) {
+    echo "ERROR: Connection failed: " . $e->getMessage() . "\n";
+    exit(1);
+}
 if ($mysqli->connect_error) {
     echo "ERROR: Connection failed: " . $mysqli->connect_error . "\n";
     exit(1);
