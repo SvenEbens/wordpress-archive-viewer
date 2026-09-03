@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::process::Stdio;
 use tokio::process::Command;
 use tokio::time::{sleep, Duration};
 use tokio::net::TcpStream;
@@ -103,12 +104,12 @@ pub async fn start(config: &AppConfig, port: u16) -> Result<tokio::process::Chil
     // Start MariaDB server
     tracing::info!("Starting MariaDB on port {} from {}", port, bin_dir.display());
     let mut cmd = Command::new(bin_dir.join(format!("mariadbd{}", std::env::consts::EXE_SUFFIX)));
-    cmd.arg(format!("--defaults-file={}", ini_path.display()))
+    cmd.kill_on_drop(true)
+       .arg(format!("--defaults-file={}", ini_path.display()))
        .arg("--console")
        .arg(format!("--port={}", port))
        .arg(format!("--datadir={}", data_dir.display().to_string().replace('\\', "/")))
-       .current_dir(&maria_dir)
-       .kill_on_drop(true);
+       .current_dir(&maria_dir);
        
     #[cfg(target_os = "windows")]
     {

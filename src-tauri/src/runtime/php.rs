@@ -1,3 +1,4 @@
+use std::process::Stdio;
 use tokio::process::Command;
 use tokio::time::{sleep, Duration};
 use tokio::net::TcpStream;
@@ -100,13 +101,13 @@ opcache.validate_timestamps=0\n";
     
     tracing::info!("Starting PHP-CGI on {}", bind_addr);
     let mut cmd = Command::new(&php_cgi);
-    cmd.arg("-b")
+    cmd.kill_on_drop(true)
+       .arg("-b")
        .arg(&bind_addr)
        .arg("-c")
        .arg(php_dir.join("php.ini"))
        .current_dir(&php_dir)
-       .env("PHP_FCGI_MAX_REQUESTS", "0") // Keep alive forever
-       .kill_on_drop(true);
+       .env("PHP_FCGI_MAX_REQUESTS", "0"); // Keep alive forever
        
     #[cfg(target_os = "windows")]
     {

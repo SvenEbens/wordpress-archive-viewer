@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::process::Stdio;
 use tokio::process::Command;
 use tokio::time::{sleep, Duration};
 use reqwest;
@@ -50,11 +51,13 @@ pub async fn start(config: &AppConfig, doc_root: &Path, http_port: u16, php_port
 
     tracing::info!("Starting Caddy on port {}", http_port);
     let mut cmd = Command::new(&caddy_exe);
-    cmd.arg("run")
-       .arg("--config")
-       .arg(&caddyfile_path)
-       .current_dir(&caddy_dir)
-       .kill_on_drop(true);
+    cmd.kill_on_drop(true);
+    cmd.current_dir(config.runtime_dir.join("caddy"))
+        .arg("run")
+        .arg("--config")
+        .arg(&caddyfile_path)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
        
     #[cfg(target_os = "windows")]
     {

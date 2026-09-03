@@ -36,6 +36,23 @@ pub async fn start_archive(
     config: State<'_, AppConfig>,
     state: State<'_, SharedRuntimeState>,
 ) -> Result<()> {
+    match start_archive_inner(id, force_reextract, &app, &config, &state).await {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            tracing::error!("Failed to start archive, cleaning up processes: {}", e);
+            runtime::stop_all(Arc::clone(&*state)).await;
+            Err(e)
+        }
+    }
+}
+
+async fn start_archive_inner(
+    id: String,
+    force_reextract: Option<bool>,
+    app: &AppHandle,
+    config: &AppConfig,
+    state: &SharedRuntimeState,
+) -> Result<()> {
     let force_reextract = force_reextract.unwrap_or(false);
     tracing::info!("Starting archive with ID: {} (force_reextract: {})", id, force_reextract);
     
