@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # Versions
-$PHP_VERSION = '8.3.20'
+$PHP_VERSION = '8.3.33'
 $MARIADB_VERSION = '11.4.5'
 $CADDY_VERSION = '2.9.1'
 
