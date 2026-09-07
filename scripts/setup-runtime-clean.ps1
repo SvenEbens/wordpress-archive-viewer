@@ -35,8 +35,8 @@ if (-not (Test-Path $iniPath)) {
     $extDir = (Join-Path $PhpDir "ext") -replace '\\', '/'
     $content = Get-Content $iniPath -Raw
     $exts = @("curl","fileinfo","gd","intl","mbstring","exif","mysqli","openssl","pdo_mysql","zip","sodium")
-    foreach ($ext in $exts) { $content = $content -replace "^;(extension=$ext)`$", "extension=$ext" }
-    $content = $content -replace '^;?extension_dir\s*=.*$', "extension_dir = `"$extDir`""
+    foreach ($ext in $exts) { $content = $content -replace "(?m)^;(extension=$ext)`$", "extension=$ext" }
+    $content = $content -replace '(?m)^;?extension_dir\s*=.*$', 'extension_dir = "ext"'
     $content | Out-File $iniPath -Encoding UTF8 -Force
 }
 Write-Host "Setup Complete!"

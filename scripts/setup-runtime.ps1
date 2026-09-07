@@ -86,8 +86,7 @@ function Setup-PhpIni {
         $content = $content -replace ('(?m)^;(extension=' + $ext + ')'), ('extension=' + $ext)
     }
 
-    $extDir = (Join-Path $PhpDir 'ext') -replace '\\', '/'
-    $content = $content -replace '(?m)^;?extension_dir\s*=.*$', ('extension_dir = "' + $extDir + '"')
+    $content = $content -replace '(?m)^;?extension_dir\s*=.*$', 'extension_dir = "ext"'
 
     $settings = @(
         '',
